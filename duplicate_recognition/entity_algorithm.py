@@ -32,19 +32,19 @@ class DuplicateRecognition:
         self.logger = logger or logging.getLogger(f"{self.__class__.__name__}Duplicates")
 
     def get_relevant_entities(self) -> Generator[Dict[str, Any], None, None]:
-        pass
+        yield from ()
 
     def get_refresh_pairs(self) -> Generator[Tuple[int, int], None, None]:
-        pass
+        yield from ()
 
     def get_existing(self) -> Generator[int, None, None]:
-        pass
+        yield from ()
 
     def get_uncompared(self) -> Generator[int, None, None]:
-        pass
+        yield from ()
 
     def write_comparisons(self, comparisons: Generator[Comparison, None, None]):
-        pass
+        yield from ()
 
     @timeit
     def _map_relevant_entities(self) -> Dict[int, Dict[str, Any]]:
@@ -99,25 +99,37 @@ class DuplicateRecognition:
         # getting all existing pairs that need to be refreshed
         refresh_pairs = self.get_refresh_pairs()
         a, b = next(refresh_pairs, (None, None))
-        _prev_a = a
-        existing: Set[int] = {b}
 
-        for a, b in refresh_pairs:
+        if a is not None and b is not None:
+            _prev_a = a
+            existing: Set[int] = {b}
+
+            for a, b in refresh_pairs:
+                if a != _prev_a:
+                    yield _prev_a, tuple(existing)
+                    existing.clear()
+
+                existing.add(b)
+                _prev_a = a
             if a != _prev_a:
                 yield _prev_a, tuple(existing)
-                existing.clear()
-
-            existing.add(b)
-            _prev_a = a
-        if a != _prev_a:
-            yield _prev_a, tuple(existing)
+        else:
+            self.logger.info("No existing pairs need to be refreshed.")
 
         # generating all the new pairs
         a = 0
         existing: List[int] = list(self.get_existing())
         uncompared = self.get_uncompared()
+        print(existing)
+        print(uncompared)
         if len(existing) <= 0:
-            existing.append(next(uncompared))
+            existing.append(next(uncompared, None))
+
+            # this prevents the program raising an error, if no new pairs exist
+            if existing[0] is None:
+                logging.info("No new pairs need to be compared.")
+                yield from ()
+                return
 
         for a in uncompared:
             yield a, tuple(existing)
@@ -181,11 +193,11 @@ class DuplicateRecognition:
         for _field in self.NEGATIVE_FIELDS:
             self.F_SCORES[_field] = -1 * self.F_SCORES[_field]
 
-        id_to_entity = self._map_relevant_entities(dependencies=self)
+        id_to_entity = self._map_relevant_entities()
 
         self.logger.info(f"Fetched {len(id_to_entity)} entities.")
 
-        for a, existing in self._generate_comparisons(dependencies=self):
+        for a, existing in self._generate_comparisons():
             self.write_comparisons(self._compare(id_to_entity[a], [id_to_entity[b] for b in existing]))
 
             if decrement_limit():
