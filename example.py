@@ -101,7 +101,7 @@ class Entity(DuplicateRecognition):
         cursor = self.connection.cursor()
 
         query = f"""
-        INSERT INTO aussteller_dubletten (a, b, score, count, f_score_sum, change_date) VALUE (%s, %s, %s, %s, %s, NOW())
+        INSERT INTO entity_edge_list (a, b, score, count, f_score_sum, change_date) VALUE (%s, %s, %s, %s, %s, NOW())
         ON DUPLICATE KEY UPDATE score=VALUES(score), count=VALUES(count), f_score_sum=VALUES(f_score_sum), change_date=NOW();
         """
 
