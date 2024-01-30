@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+directory = "dist"
+
+[tool.hatch.build.targets.sdist]
+include = ["duplicate_recognition/*.py"]
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["duplicate_recognition"]
+
+[project]
+dynamic = ["dependencies"]
+name = "duplicate_recognition"
+version = "0.0.1"
+authors = [
+  { name="Hazel", email="Hazel.Noack@proton.me" },
+]
+description = "This Project uses the calculation of similarities scores of a set of entities in an edge list. To allow for versatile usage, it uses dependency injection to implement it into any application."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/HeIIow2/Duplicate-Recognition"
+Issues = "https://github.com/HeIIow2/Duplicate-Recognition/issues"

@@ -25,7 +25,15 @@ class Statistics:
 
         def timed(*args, **kw):
             ts = time.time()
-            result = method(*args, **kw)
+            try:
+                result = method(*args, **kw)
+            except KeyboardInterrupt:
+                te = time.time()
+                duration = te - ts
+                self.timings[method.__name__].append(duration)
+                logger.info(f"{method.__name__} took {duration} seconds:")
+
+                raise KeyboardInterrupt
 
             te = time.time()
 
