@@ -6,7 +6,7 @@ from typing import Optional
 
 from .field_algorythm import compare_fields
 from .utils import Comparison, Algorithm
-from .statistics import STATISTICS
+from .statistics import STATISTICS, clear_stats
 
 
 class DuplicateRecognition:
@@ -44,6 +44,7 @@ class DuplicateRecognition:
     def get_uncompared(self) -> Generator[int, None, None]:
         yield from ()
 
+    @STATISTICS.silent_timeit
     def write_comparisons(self, comparisons: Generator[Comparison, None, None]):
         yield from ()
 
@@ -193,6 +194,8 @@ class DuplicateRecognition:
 
     @STATISTICS.timeit
     def execute(self, limit: Optional[int] = None):
+        clear_stats()
+
         def _decrement_limit() -> bool:
             nonlocal limit
             limit -= 1
@@ -204,7 +207,6 @@ class DuplicateRecognition:
 
         for _field in self.NEGATIVE_FIELDS:
             self.F_SCORES[_field] = -1 * self.F_SCORES[_field]
-
 
         self.logger.info(f"Fetched {len(id_to_entity)} entities.")
 

@@ -5,9 +5,14 @@ from Levenshtein import distance
 import pycountry
 
 from .utils import Algorithm
+from .statistics import STATISTICS
+
+
+country_cache = {}
 
 
 @lru_cache()
+@STATISTICS.silent_timeit
 def compare_country(self: str, other: str) -> float:
     """
     :param self: The first string to compare
@@ -16,8 +21,13 @@ def compare_country(self: str, other: str) -> float:
     :return: A float between 0 and 1 representing similarity of self and other.
     """
 
-    @lru_cache()
+    @STATISTICS.silent_timeit
     def get_countries(raw_country: str) -> str:
+        global country_cache
+
+        if raw_country in country_cache:
+            return country_cache[raw_country]
+
         try:
             r = pycountry.countries.search_fuzzy(raw_country)
         except LookupError:
@@ -25,7 +35,11 @@ def compare_country(self: str, other: str) -> float:
         if len(r) == 0:
             return raw_country
 
-        return r[0].name
+        result = r[0].name
+
+        country_cache[raw_country] = result
+        country_cache[result] = result
+        return result
 
     self = get_countries(self)
     other = get_countries(other)
@@ -34,6 +48,7 @@ def compare_country(self: str, other: str) -> float:
 
 
 @lru_cache()
+@STATISTICS.silent_timeit
 def phonetic_distance(self: str, other: str) -> float:
     """
     :param self: The first string to compare

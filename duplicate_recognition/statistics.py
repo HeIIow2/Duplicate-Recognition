@@ -44,21 +44,43 @@ class Statistics:
 
         return timed
 
-    def __del__(self):
+    def silent_timeit(self, method):
+        def timed(*args, **kw):
+            ts = time.time()
+            result = method(*args, **kw)
+            te = time.time()
+
+            self.timings[method.__name__].append(te - ts)
+            return result
+        return timed
+
+    def print_stats(self):
         print("Timings:")
         for name, timing in self.timings.items():
             if len(timing) == 1:
                 print(f"{name}: {timing[0]} seconds")
             else:
-                print(f"{name}: on avr. {sum(timing) / len(timing)} seconds")
-                print(*timing, sep=", ")
+                print(f"{name}")
+                print(f"\taverage: {sum(timing) / len(timing)}")
+                print(f"\tnumbers called: {len(timing)}")
+                print(f"\ttotal duration: {sum(timing)}")
 
         print()
         print("Comparisons:")
         if self.compared_pairs_total > 0:
-            print(f"Average compared entity count per comparison: "
-                  f"{self.compared_entity_total / self.compared_pairs_total}")
+            print(f"Average compared fields per entity: "
+                  f"{self.compared_field_total / self.compared_entity_total}")
         print(f"Comparison pairs: {self.compared_pairs_total}")
+        print()
+
+    def __del__(self):
+        self.print_stats()
 
 
 STATISTICS = Statistics()
+
+
+def clear_stats():
+    global STATISTICS
+    STATISTICS.print_stats()
+    STATISTICS.__dict__ = Statistics().__dict__
