@@ -5,7 +5,8 @@ from typing import Generator, Tuple, Set, List, Dict, Any
 from typing import Optional
 
 from .field_algorythm import compare_fields
-from .utils import Comparison, Algorithm, timeit
+from .utils import Comparison, Algorithm
+from .statistics import STATISTICS
 
 
 class DuplicateRecognition:
@@ -46,7 +47,7 @@ class DuplicateRecognition:
     def write_comparisons(self, comparisons: Generator[Comparison, None, None]):
         yield from ()
 
-    @timeit
+    @STATISTICS.timeit
     def _map_relevant_entities(self) -> Dict[int, Dict[str, Any]]:
         """
         :return: A dictionary mapping the id of an entity to the entity itself.
@@ -84,12 +85,12 @@ class DuplicateRecognition:
             for entity in self.get_relevant_entities()
         }
 
-    @timeit
+    @STATISTICS.timeit
     def _generate_comparisons(self) -> Generator[Tuple[int, Tuple[int, ...]], None, None]:
         """
         :param self: The dependencies to use
         :return: A generator that yields tuples (a, existing) representing the pairs to compare,
-        where a is an entity to be checked and existing is a tuple of existing entities.
+        where an is an entity to be checked and existing is a tuple of existing entities.
 
         This generates the pairs to compare.
 
@@ -142,6 +143,7 @@ class DuplicateRecognition:
         if a > 0:
             yield a, tuple(existing)
 
+    @STATISTICS.compare_wrapper
     def _compare(self, entity: Dict[str, Any], entity_pool: List[Dict[str, Any]]) -> Generator[Comparison, None, None]:
         """
         :param entity: The entity to compare
@@ -151,12 +153,14 @@ class DuplicateRecognition:
         """
         best_match: Comparison = Comparison({}, {})
         for other_entity in entity_pool:
+            STATISTICS.compared_entity_total += 1
             comparison = Comparison(entity, other_entity)
 
             for key in entity.keys():
                 if key not in other_entity:
                     continue
 
+                STATISTICS.compared_field_total += 1
                 a = entity[key]
                 b = other_entity[key]
 
@@ -177,6 +181,7 @@ class DuplicateRecognition:
                 comparison.count += 1
 
             comparison.score = comparison.score / comparison.count if comparison.count > 0 else 0
+
             yield comparison
 
             if comparison.score > best_match.score:
@@ -186,7 +191,7 @@ class DuplicateRecognition:
                           f"with {len(entity_pool)} entities. "
                           f"{best_match.score:.2f}: {best_match.other_entity.get('firma', '')}")
 
-    @timeit
+    @STATISTICS.timeit
     def execute(self, limit: Optional[int] = None):
         def _decrement_limit() -> bool:
             nonlocal limit

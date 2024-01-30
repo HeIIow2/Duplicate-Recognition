@@ -1,22 +1,6 @@
 from typing import Dict, Any
-import logging
-import time
 from enum import Enum
 from dataclasses import dataclass, field
-
-
-def timeit(method):
-    logger = logging.getLogger("timeit")
-
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        te = time.time()
-
-        logger.info(f"{method.__name__} took {te - ts} seconds:")
-        return result
-
-    return timed
 
 
 class Algorithm(Enum):

@@ -1,13 +1,3 @@
-# Duplicate-Recognition
-This Project uses the calculation of similarities scores of a set of entities in an edge list. To allow for versatile usage, it uses dependency injection to implement it into any application.
-
-## Usage
-
-You need to implement all the read/write methods, to keep the project versatile.
-
-For an example on how to use it, see the [example](example.py), or the following code block:
-
-```python
 """
 This is an example implementation of the DuplicateRecognition class.
 It won't work. It's just to show, how it could be used.
@@ -126,5 +116,3 @@ class Entity(DuplicateRecognition):
 
 if __name__ == "__main__":
     Entity().execute(limit=None)
-
-```
