@@ -18,7 +18,10 @@ def compare_country(self: str, other: str) -> float:
 
     @lru_cache()
     def get_countries(raw_country: str) -> str:
-        r = pycountry.countries.search_fuzzy(raw_country)
+        try:
+            r = pycountry.countries.search_fuzzy(raw_country)
+        except LookupError:
+            return raw_country
         if len(r) == 0:
             return raw_country
 
@@ -27,10 +30,7 @@ def compare_country(self: str, other: str) -> float:
     self = get_countries(self)
     other = get_countries(other)
 
-    if self == other:
-        return 1
-
-    return phonetic_distance(self, other)
+    return self == other
 
 
 @lru_cache()

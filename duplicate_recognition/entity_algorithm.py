@@ -37,7 +37,7 @@ class DuplicateRecognition:
     def get_refresh_pairs(self) -> Generator[Tuple[int, int], None, None]:
         yield from ()
 
-    def get_existing(self) -> Generator[int, None, None]:
+    def get_compared(self) -> Generator[int, None, None]:
         yield from ()
 
     def get_uncompared(self) -> Generator[int, None, None]:
@@ -57,6 +57,8 @@ class DuplicateRecognition:
         def _process_entity(entity: Dict[str, Any]) -> Dict[str, Any]:
             nonlocal self
 
+            cleaned = {}
+
             @lru_cache()
             def _clean_value(value: Any) -> Any:
                 if isinstance(value, str):
@@ -64,12 +66,17 @@ class DuplicateRecognition:
 
                 return value
 
-            cleaned = {
-                key: _clean_value(value) for key, value in entity.items()
-                if value is not None and _clean_value(value) != '' and self.F_SCORES[key] > 0
-            }
+            for key, value in entity.items():
+                value = _clean_value(value)
 
-            _clean_value.cache_clear()
+                if value is None or value == '':
+                    continue
+
+                if self.F_SCORES[key] <= 0 and key != self.ID_COLUMN:
+                    continue
+
+                cleaned[key] = value
+
             return cleaned
 
         return {
@@ -118,10 +125,8 @@ class DuplicateRecognition:
 
         # generating all the new pairs
         a = 0
-        existing: List[int] = list(self.get_existing())
+        existing: List[int] = list(self.get_compared())
         uncompared = self.get_uncompared()
-        print(existing)
-        print(uncompared)
         if len(existing) <= 0:
             existing.append(next(uncompared, None))
 
@@ -190,10 +195,11 @@ class DuplicateRecognition:
 
         decrement_limit = _decrement_limit if limit is not None else lambda: False
 
+        id_to_entity = self._map_relevant_entities()
+
         for _field in self.NEGATIVE_FIELDS:
             self.F_SCORES[_field] = -1 * self.F_SCORES[_field]
 
-        id_to_entity = self._map_relevant_entities()
 
         self.logger.info(f"Fetched {len(id_to_entity)} entities.")
 
