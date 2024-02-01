@@ -30,6 +30,8 @@ class DuplicateRecognition:
     NEGATIVE_FIELDS: Set[str] = set()
 
     def __init__(self, logger: logging.Logger = None):
+        self.kwargs = locals()
+
         self.logger = logger or logging.getLogger(f"{self.__class__.__name__}Duplicates")
 
     def get_relevant_entities(self) -> Generator[Dict[str, Any], None, None]:
@@ -195,6 +197,7 @@ class DuplicateRecognition:
     @STATISTICS.timeit
     def execute(self, limit: Optional[int] = None):
         clear_stats()
+        DuplicateRecognition.__init__(**self.kwargs)
 
         def _decrement_limit() -> bool:
             nonlocal limit

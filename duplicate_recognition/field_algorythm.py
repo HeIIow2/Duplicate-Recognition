@@ -8,43 +8,41 @@ from .utils import Algorithm
 from .statistics import STATISTICS
 
 
-country_cache = {}
-
-
-@lru_cache()
-@STATISTICS.silent_timeit
-def compare_country(self: str, other: str) -> float:
-    """
-    :param self: The first string to compare
-    :param other: The second string to compare
-
-    :return: A float between 0 and 1 representing similarity of self and other.
-    """
+class CountryComparisons:
+    def __init__(self):
+        self._fuzzy_map = {}
 
     @STATISTICS.silent_timeit
-    def get_countries(raw_country: str) -> str:
-        global country_cache
-
-        if raw_country in country_cache:
-            return country_cache[raw_country]
+    def get_countries(self, query: str) -> str:
+        if query in self._fuzzy_map:
+            return self._fuzzy_map[query]
 
         try:
-            r = pycountry.countries.search_fuzzy(raw_country)
+            r = pycountry.countries.search_fuzzy(query, return_first=True)
         except LookupError:
-            return raw_country
+            return query
         if len(r) == 0:
-            return raw_country
+            return query
 
         result = r[0].name
 
-        country_cache[raw_country] = result
-        country_cache[result] = result
+        self._fuzzy_map[query] = result
+        self._fuzzy_map[result] = result
+
         return result
 
-    self = get_countries(self)
-    other = get_countries(other)
+    def compare(self, a: str, b: str) -> float:
+        """
+        :param a: The first string to compare
+        :param b: The second string to compare
 
-    return self == other
+        :return: A float between 0 and 1 representing similarity of a and b.
+        """
+
+        a = self.get_countries(a)
+        b = self.get_countries(b)
+
+        return a == b
 
 
 @lru_cache()
@@ -90,11 +88,15 @@ def compare_url(self: str, other: str) -> float:
     return phonetic_distance(self, other)
 
 
+# the comparisons with the countries need state, thus they have to be initialized
+country_state = CountryComparisons()
+
+
 FIELD_ALGORITHMS: Dict[Algorithm, Callable[[Any, Any], float]] = {
     Algorithm.EQUALITY: lambda self, other: self == other,
     Algorithm.PHONETIC_DISTANCE: phonetic_distance,
     Algorithm.URL: compare_url,
-    Algorithm.COUNTRY: compare_country,
+    Algorithm.COUNTRY: country_state.compare,
     Algorithm.VAT_ID: compare_stripped_numbers,
     Algorithm.PHONE: compare_stripped_numbers,
 }
