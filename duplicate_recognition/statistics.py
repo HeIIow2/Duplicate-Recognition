@@ -53,6 +53,21 @@ class Statistics:
 
             self.timings[method.__name__].append(te - ts)
             return result
+
+        return timed
+
+    def promise_timeit(self, method):
+        def timed(*args, **kw):
+            ts = time.time()
+
+            def _callback():
+                te = time.time()
+                self.timings[method.__name__].append(te - ts)
+
+            kw["callback"] = _callback
+
+            return method(*args, **kw)
+
         return timed
 
     def print_stats(self):
@@ -64,7 +79,7 @@ class Statistics:
 
         for name, timing in self.timings.items():
             if len(timing) == 1:
-                timing_str += f"{name}: {timing[0]} seconds\n"
+                timing_str += f"{name}: {round(timing[0], 5)} seconds\n"
             else:
                 timing_str += f"{name}\n"
                 timing_str += f"\taverage: {sum(timing) / len(timing)}\n"
@@ -74,7 +89,7 @@ class Statistics:
         self.logger.info(timing_str)
 
         comp_str = "Comparisons:\n"
-        if self.compared_pairs_total > 0:
+        if self.compared_entity_total > 0:
             comp_str += f"Average compared fields per entity: {self.compared_field_total / self.compared_entity_total}\n"
         comp_str += f"Comparison pairs: {self.compared_pairs_total}"
 

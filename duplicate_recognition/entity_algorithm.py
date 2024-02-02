@@ -9,6 +9,20 @@ from .utils import Comparison, Algorithm
 from .statistics import STATISTICS, clear_stats
 
 
+class EntityDict(dict):
+    # https://stackoverflow.com/a/6229253/16804841
+    def __init__(self, entity_generator: Generator[Tuple[int, Dict[str, Any]], None, None], *args, **kwargs):
+        self.entity_generator = entity_generator
+        super().__init__(*args, **kwargs)
+
+    def __missing__(self, key: int):
+        for entity_id, entity in self.entity_generator:
+            self[entity_id] = entity
+            if entity_id == key:
+                return entity
+        return key
+
+
 class DuplicateRecognition:
     """
     Here are all objects, that are used for dependency injection.
@@ -51,42 +65,44 @@ class DuplicateRecognition:
         yield from ()
 
     @STATISTICS.timeit
-    def _map_relevant_entities(self) -> Dict[int, Dict[str, Any]]:
+    def _map_relevant_entities(self) -> Generator[Tuple[int, Dict[str, Any]], None, None]:
         """
         :return: A dictionary mapping the id of an entity to the entity itself.
 
         This maps the relevant entities.
         """
 
-        def _process_entity(entity: Dict[str, Any]) -> Dict[str, Any]:
-            nonlocal self
+        @lru_cache()
+        def _clean_value(value: Any) -> Any:
+            """
+            :param value:
+            :return: if it returns None, the entry will be deleted from the entity.
+            """
+            if isinstance(value, str):
+                value = value.strip().lower()
 
-            cleaned = {}
+            return value
 
-            @lru_cache()
-            def _clean_value(value: Any) -> Any:
-                if isinstance(value, str):
-                    value = value.strip().lower()
-
-                return value
-
-            for key, value in entity.items():
-                value = _clean_value(value)
-
-                if value is None or value == '':
-                    continue
-
+        def _process_entity(_entity: Dict[str, Any]) -> Dict[str, Any]:
+            for key, value in _entity.copy().items():
                 if self.F_SCORES[key] <= 0 and key != self.ID_COLUMN:
+                    del _entity[key]
                     continue
 
-                cleaned[key] = value
+                _value = _clean_value(value)
 
-            return cleaned
+                if _value is None or _value == '':
+                    del _entity[key]
+                    continue
 
-        return {
-            int(entity[self.ID_COLUMN]): _process_entity(entity=entity)
-            for entity in self.get_relevant_entities()
-        }
+                _entity[key] = _value
+
+            return _entity
+
+        for entity in self.get_relevant_entities():
+            yield int(entity[self.ID_COLUMN]), _process_entity(_entity=entity)
+        else:
+            yield from ()
 
     @STATISTICS.timeit
     def _generate_comparisons(self) -> Generator[Tuple[int, Tuple[int, ...]], None, None]:
@@ -209,12 +225,10 @@ class DuplicateRecognition:
 
         decrement_limit = _decrement_limit if limit is not None else lambda: False
 
-        id_to_entity = self._map_relevant_entities()
+        id_to_entity = EntityDict(self._map_relevant_entities())
 
         for _field in self.NEGATIVE_FIELDS:
             self.F_SCORES[_field] = -1 * self.F_SCORES[_field]
-
-        self.logger.info(f"Fetched {len(id_to_entity)} entities.")
 
         for a, existing in self._generate_comparisons():
             self.write_comparisons(self._compare(id_to_entity[a], [id_to_entity[b] for b in existing]))
