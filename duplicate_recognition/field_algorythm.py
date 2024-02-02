@@ -67,45 +67,61 @@ class CountryComparisons:
 
 @lru_cache()
 @STATISTICS.silent_timeit
-def phonetic_distance(self: str, other: str) -> float:
+def phonetic_distance(a: str, b: str) -> float:
     """
-    :param self: The first string to compare
-    :param other: The second string to compare
+    :param a: The first string to compare
+    :param b: The second string to compare
 
     :return: A float between 0 and 1 representing similarity of self and other.
     """
-    max_length = max(len(self), len(other))
+    max_length = max(len(a), len(b))
     if max_length == 0:
         return 0
 
-    d = distance(self, other)
+    d = distance(a, b)
     return 1 - (d / max_length)
 
 
 @lru_cache()
-def compare_stripped_numbers(self: str, other: str) -> float:
+def compare_stripped_numbers(a: str, b: str) -> float:
     """
-    :param self: The first string to compare
-    :param other: The second string to compare
+    :param a: The first string to compare
+    :param b: The second string to compare
 
     :return: A float between 0 and 1 representing similarity of self and other.
 
     strip all non-numeric characters, and do a comparison
     """
-    return ''.join(filter(str.isdigit, self)) == ''.join(filter(str.isdigit, other))
+    return ''.join(filter(str.isdigit, a)) == ''.join(filter(str.isdigit, b))
 
 
 @lru_cache()
-def compare_url(self: str, other: str) -> float:
+def compare_url(a: str, b: str) -> float:
     """
-    :param self: The first string to compare
-    :param other: The second string to compare
+    :param a: The first string to compare
+    :param b: The second string to compare
 
     :return: A float between 0 and 1 representing similarity of self and other.
     """
-    self = self.replace("/", "").replace("www.", "").replace("http:", "").replace("https:", "")
-    other = other.replace("/", "").replace("www.", "").replace("http:", "").replace("https:", "")
-    return phonetic_distance(self, other)
+    a = a.replace("/", "").replace("www.", "").replace("http:", "").replace("https:", "")
+    b = b.replace("/", "").replace("www.", "").replace("http:", "").replace("https:", "")
+    return phonetic_distance(a, b)
+
+
+def compare_email(a: str, b: str) -> float:
+    if not ("@" in a and "@" in b):
+        return phonetic_distance(a, b)
+
+    a_name, a_domain = a.split("@")
+    b_name, b_domain = b.split("@")
+
+    if a_domain != b_domain:
+        return 0
+
+    a_name.rsplit("+", 1)[0]
+    b_name.rsplit("+", 1)[0]
+
+    return int(a_name == b_name)
 
 
 # the comparisons with the countries need state, thus they have to be initialized
@@ -119,6 +135,7 @@ FIELD_ALGORITHMS: Dict[Algorithm, Callable[[Any, Any], float]] = {
     Algorithm.COUNTRY: country_state.compare,
     Algorithm.VAT_ID: compare_stripped_numbers,
     Algorithm.PHONE: compare_stripped_numbers,
+    Algorithm.EMAIL
 }
 
 

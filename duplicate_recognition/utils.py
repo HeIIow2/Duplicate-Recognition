@@ -10,6 +10,7 @@ class Algorithm(Enum):
     COUNTRY = 4
     VAT_ID = 5
     PHONE = 6
+    EMAIL = 7
 
 
 @dataclass
