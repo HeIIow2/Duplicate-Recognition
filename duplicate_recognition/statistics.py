@@ -3,7 +3,6 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List
-import math
 
 
 @dataclass
@@ -12,6 +11,8 @@ class Statistics:
     compared_field_total: int = 0
     compared_entity_total: int = 0
     compared_pairs_total: int = 0
+
+    logger = logging.getLogger("statistics")
 
     def compare_wrapper(self, method):
         def _inner(*args, **kw):
@@ -55,23 +56,29 @@ class Statistics:
         return timed
 
     def print_stats(self):
-        print("Timings:")
+        # this tries to ask if there are any timings
+        if len(self.timings) <= 0:
+            return
+
+        timing_str = "Timings:\n"
+
         for name, timing in self.timings.items():
             if len(timing) == 1:
-                print(f"{name}: {timing[0]} seconds")
+                timing_str += f"{name}: {timing[0]} seconds\n"
             else:
-                print(f"{name}")
-                print(f"\taverage: {sum(timing) / len(timing)}")
-                print(f"\tnumbers called: {len(timing)}")
-                print(f"\ttotal duration: {sum(timing)}")
+                timing_str += f"{name}\n"
+                timing_str += f"\taverage: {sum(timing) / len(timing)}\n"
+                timing_str += f"\tnumbers called: {len(timing)}\n"
+                timing_str += f"\ttotal duration: {sum(timing)}\n"
 
-        print()
-        print("Comparisons:")
+        self.logger.info(timing_str)
+
+        comp_str = "Comparisons:\n"
         if self.compared_pairs_total > 0:
-            print(f"Average compared fields per entity: "
-                  f"{self.compared_field_total / self.compared_entity_total}")
-        print(f"Comparison pairs: {self.compared_pairs_total}")
-        print()
+            comp_str += f"Average compared fields per entity: {self.compared_field_total / self.compared_entity_total}\n"
+        comp_str += f"Comparison pairs: {self.compared_pairs_total}"
+
+        self.logger.info(comp_str)
 
     def __del__(self):
         self.print_stats()
