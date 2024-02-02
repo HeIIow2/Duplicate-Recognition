@@ -118,8 +118,8 @@ def compare_email(a: str, b: str) -> float:
     if a_domain != b_domain:
         return 0
 
-    a_name.rsplit("+", 1)[0]
-    b_name.rsplit("+", 1)[0]
+    a_name = a_name.rsplit("+", 1)[0]
+    b_name = b_name.rsplit("+", 1)[0]
 
     return int(a_name == b_name)
 

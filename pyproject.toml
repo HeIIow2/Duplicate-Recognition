@@ -17,7 +17,7 @@ packages = ["duplicate_recognition"]
 [project]
 dynamic = ["dependencies"]
 name = "duplicate_recognition"
-version = "0.0.7"
+version = "0.0.8"
 authors = [
   { name="Hazel", email="Hazel.Noack@proton.me" },
 ]
