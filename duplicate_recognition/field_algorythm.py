@@ -1,8 +1,12 @@
+import logging
 from functools import lru_cache
 from typing import Callable, Dict, Any
+from pathlib import Path
+import json
 
 from Levenshtein import distance
 import pycountry
+import tempfile
 
 from .utils import Algorithm
 from .statistics import STATISTICS
@@ -11,6 +15,18 @@ from .statistics import STATISTICS
 class CountryComparisons:
     def __init__(self):
         self._fuzzy_map = {}
+        self._fuzzy_map_cache = Path(tempfile.gettempdir(), "pycountry_fuzzy_map.json")
+        if self._fuzzy_map_cache.is_file():
+            with self._fuzzy_map_cache.open("r") as f:
+                self._fuzzy_map = json.load(f)
+
+        # Test if this pull request already has been merged https://github.com/pycountry/pycountry/pull/210
+        self._fuzzy_kwargs = {"return_first": True}
+        try:
+            pycountry.countries.search_fuzzy("DE", **self._fuzzy_kwargs)
+        except TypeError:
+            logging.warning("pycountry version is too old, fuzzy search will be slower.")
+            self._fuzzy_kwargs = {}
 
     @STATISTICS.silent_timeit
     def get_countries(self, query: str) -> str:
@@ -18,7 +34,7 @@ class CountryComparisons:
             return self._fuzzy_map[query]
 
         try:
-            r = pycountry.countries.search_fuzzy(query, return_first=True)
+            r = pycountry.countries.search_fuzzy(query, **self._fuzzy_kwargs)
         except LookupError:
             return query
         if len(r) == 0:
@@ -43,6 +59,10 @@ class CountryComparisons:
         b = self.get_countries(b)
 
         return a == b
+
+    def __del__(self):
+        with self._fuzzy_map_cache.open("w") as f:
+            json.dump(self._fuzzy_map, f)
 
 
 @lru_cache()

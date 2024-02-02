@@ -1,3 +1,2 @@
 Levenshtein~=0.24.0
-# pycountry~=22.3.5
-pycountry~=23.12.11.dev0
+pycountry<=24.0.1
