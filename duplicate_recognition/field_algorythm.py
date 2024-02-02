@@ -135,7 +135,7 @@ FIELD_ALGORITHMS: Dict[Algorithm, Callable[[Any, Any], float]] = {
     Algorithm.COUNTRY: country_state.compare,
     Algorithm.VAT_ID: compare_stripped_numbers,
     Algorithm.PHONE: compare_stripped_numbers,
-    Algorithm.EMAIL
+    Algorithm.EMAIL: compare_email,
 }
 
 

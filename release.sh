@@ -7,4 +7,4 @@ python3 -m build --wheel
 
 # upload to pypi
 python3 -m twine upload dist/*
-python3 -m twine upload --repository gitlab_wc_duplicates dist/*
+python3 -m twine upload --skip-existing --repository gitlab_wc_duplicates dist/*
