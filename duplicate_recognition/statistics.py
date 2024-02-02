@@ -32,7 +32,7 @@ class Statistics:
                 te = time.time()
                 duration = te - ts
                 self.timings[method.__name__].append(duration)
-                logger.info(f"{method.__name__} took {duration} seconds:")
+                self.logger.debug(f"{method.__name__} took {duration} seconds:")
 
                 raise KeyboardInterrupt
 
@@ -40,7 +40,7 @@ class Statistics:
 
             duration = te - ts
             self.timings[method.__name__].append(duration)
-            logger.info(f"{method.__name__} took {duration} seconds:")
+            self.logger.debug(f"{method.__name__} took {duration} seconds:")
             return result
 
         return timed

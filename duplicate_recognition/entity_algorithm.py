@@ -140,11 +140,14 @@ class DuplicateRecognition:
                 yield from ()
                 return
 
+        existing_set = set(existing)
         for a in uncompared:
+            if a in existing_set:
+                continue
+
             yield a, tuple(existing)
             existing.append(a)
-        if a > 0:
-            yield a, tuple(existing)
+            existing_set.add(a)
 
     @STATISTICS.compare_wrapper
     def _compare(self, entity: Dict[str, Any], entity_pool: List[Dict[str, Any]]) -> Generator[Comparison, None, None]:
