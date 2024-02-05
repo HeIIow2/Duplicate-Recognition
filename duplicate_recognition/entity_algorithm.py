@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
+from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Generator, Tuple, Set, List, Dict, Any
 from typing import Optional
 
 from .field_algorythm import compare_fields
-from .utils import Comparison, Algorithm
+from .utils import Algorithm
 from .statistics import STATISTICS, clear_stats
 
 
@@ -23,6 +26,46 @@ class EntityDict(dict):
         return key
 
 
+@dataclass
+class Comparison:
+    duplicate_recognition: DuplicateRecognition
+    entity: Dict[str, Any]
+    other_entity: Dict[str, Any]
+
+    field_scores: Dict[str, float] = field(default_factory=dict)
+    f_score_sum: float = 0
+    count: int = 0
+
+    score: float = 0
+
+    @property
+    @lru_cache()
+    def pair(self) -> Tuple[int, int]:
+        _entity = super().__getattribute__("entity")
+        _other_entity = super().__getattribute__("other_entity")
+        _id_column = super().__getattribute__("duplicate_recognition").ID_COLUMN
+
+        return _entity[_id_column], _other_entity[_id_column]
+
+    def __hash__(self):
+        _entity = super().__getattribute__("entity")
+        _other_entity = super().__getattribute__("other_entity")
+        _id_column = super().__getattribute__("duplicate_recognition").ID_COLUMN
+
+        return _entity[_id_column] ^ _other_entity[_id_column]
+
+    def commit(self):
+        a, b = self.pair
+
+        def check_for_best(v: int):
+            _s = self.duplicate_recognition.best_matches.get(v, None)
+            if _s is None or _s.score < self.score:
+                self.duplicate_recognition.best_matches[v] = self
+
+        check_for_best(a)
+        check_for_best(b)
+
+
 class DuplicateRecognition:
     """
     Here are all objects, that are used for dependency injection.
@@ -35,6 +78,7 @@ class DuplicateRecognition:
     - relevant_entities: all the entities, that need to be compared.
       It doesn't matter in which run (if ran with a limit)
     """
+    THRESHOLD = 0.7
     F_SCORE_FOR_EXACT_MATCH = 10
 
     ID_COLUMN: str = "id"
@@ -45,6 +89,8 @@ class DuplicateRecognition:
 
     def __init__(self, logger: logging.Logger = None):
         self.kwargs = locals()
+
+        self.best_matches: Dict[int, Comparison] = {}
 
         self.logger = logger or logging.getLogger(f"{self.__class__.__name__}Duplicates")
 
@@ -62,6 +108,9 @@ class DuplicateRecognition:
 
     @STATISTICS.silent_timeit
     def write_comparisons(self, comparisons: Generator[Comparison, None, None]):
+        yield from ()
+
+    def write_best_comparisons(self, comparisons: Generator[Tuple[int, int, Comparison], None, None]):
         yield from ()
 
     @STATISTICS.timeit
@@ -173,10 +222,10 @@ class DuplicateRecognition:
 
         :return: A list of tuples (entity_id, f_score) representing the matches.
         """
-        best_match: Comparison = Comparison({}, {})
+        best_match: Comparison = Comparison(self, {}, {})
         for other_entity in entity_pool:
             STATISTICS.compared_entity_total += 1
-            comparison = Comparison(entity, other_entity)
+            comparison = Comparison(self, entity, other_entity)
 
             for key in entity.keys():
                 if key not in other_entity:
@@ -204,6 +253,7 @@ class DuplicateRecognition:
 
             comparison.score = comparison.score / comparison.count if comparison.count > 0 else 0
 
+            comparison.commit()
             yield comparison
 
             if comparison.score > best_match.score:
@@ -212,6 +262,13 @@ class DuplicateRecognition:
         self.logger.debug(f"Comparing {entity[self.ID_COLUMN]} {'(' + entity.get('firma', '') + ')':<50} "
                           f"with {len(entity_pool)} entities. "
                           f"{best_match.score:.2f}: {best_match.other_entity.get('firma', '')}")
+
+    def _get_best_comparison_pairs(self) -> Generator[Tuple[int, int, Comparison], None, None]:
+        for i, comp in self.best_matches.items():
+            _pair = comp.pair
+            j = _pair[1] if _pair[0] == i else _pair[0]
+            yield i, j, comp
+
 
     @STATISTICS.timeit
     def execute(self, limit: Optional[int] = None):
@@ -224,7 +281,6 @@ class DuplicateRecognition:
             return limit < 1
 
         decrement_limit = _decrement_limit if limit is not None else lambda: False
-
         id_to_entity = EntityDict(self._map_relevant_entities())
 
         for _field in self.NEGATIVE_FIELDS:
@@ -235,3 +291,11 @@ class DuplicateRecognition:
 
             if decrement_limit():
                 break
+
+        self.write_best_comparisons(self._get_best_comparison_pairs())
+
+
+
+
+    def __del__(self):
+        pass

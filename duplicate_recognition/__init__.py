@@ -1,6 +1,6 @@
-from .utils import Algorithm, Comparison
-from .entity_algorithm import DuplicateRecognition
+from .utils import Algorithm
+from .entity_algorithm import DuplicateRecognition, Comparison
 from .statistics import STATISTICS
 
 
-__all__ = ["Algorithm", "Comparison", "DuplicateRecognition", "STATISTICS"]
+__all__ = ["Algorithm", "DuplicateRecognition", "STATISTICS"]
