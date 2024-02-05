@@ -112,8 +112,8 @@ def compare_email(a: str, b: str) -> float:
     if not ("@" in a and "@" in b):
         return phonetic_distance(a, b)
 
-    a_name, a_domain = a.split("@")
-    b_name, b_domain = b.split("@")
+    a_name, a_domain = a.split("@", 1)
+    b_name, b_domain = b.split("@", 1)
 
     if a_domain != b_domain:
         return 0
