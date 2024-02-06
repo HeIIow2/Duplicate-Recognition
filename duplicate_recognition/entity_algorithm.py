@@ -58,8 +58,12 @@ class Comparison:
         a, b = self.pair
 
         def check_for_best(v: int):
-            _s = self.duplicate_recognition.best_matches.get(v, None)
-            if _s is None or _s.score < self.score:
+            if v not in self.duplicate_recognition.best_matches:
+                self.duplicate_recognition.best_matches[v] = self
+
+            other = self.duplicate_recognition.best_matches[v]
+
+            if other.score < self.score:
                 self.duplicate_recognition.best_matches[v] = self
 
         check_for_best(a)
