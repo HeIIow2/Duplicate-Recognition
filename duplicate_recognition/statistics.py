@@ -104,5 +104,4 @@ STATISTICS = Statistics()
 
 def clear_stats():
     global STATISTICS
-    STATISTICS.print_stats()
     STATISTICS.__dict__ = Statistics().__dict__

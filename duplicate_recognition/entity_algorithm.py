@@ -272,6 +272,7 @@ class DuplicateRecognition:
 
     @STATISTICS.timeit
     def execute(self, limit: Optional[int] = None):
+
         clear_stats()
         DuplicateRecognition.__init__(**self.kwargs)
 
@@ -293,9 +294,3 @@ class DuplicateRecognition:
                 break
 
         self.write_best_comparisons(self._get_best_comparison_pairs())
-
-
-
-
-    def __del__(self):
-        pass
