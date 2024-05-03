@@ -5,10 +5,6 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 
-class Dashboard:
-    logger = logging.getLogger("dashboard")
-
-
 @dataclass
 class Statistics:
     timings: Dict[str, List[float]] = field(default_factory=lambda: defaultdict(list))
@@ -99,13 +95,21 @@ class Statistics:
 
         self.logger.info(comp_str)
 
-    def __del__(self):
-        self.print_stats()
 
+class DASHBOARD:
+    logger = logging.getLogger("dashboard")
+    statistics_history: List[Statistics] = []
 
-STATISTICS = Statistics()
+    @classmethod
+    @property
+    def STATISTICS(cls) -> Statistics:
+        if len(cls.statistics_history) == 0:
+            cls.add_statistics()
+        return cls.statistics_history[-1]
 
+    @classmethod
+    def add_statistics(cls):
+        if len(cls.statistics_history) > 0:
+            cls.STATISTICS.print_stats()
 
-def clear_stats():
-    global STATISTICS
-    STATISTICS.__dict__ = Statistics().__dict__
+        cls.statistics_history.append(Statistics())

@@ -9,7 +9,7 @@ from typing import Optional
 
 from .field_algorythm import compare_fields
 from .utils import Algorithm
-from .statistics import STATISTICS, clear_stats
+from .statistics import DASHBOARD
 
 
 class EntityDict(dict):
@@ -118,14 +118,14 @@ class DuplicateRecognition:
     def get_uncompared(self) -> Generator[int, None, None]:
         yield from ()
 
-    @STATISTICS.silent_timeit
+    @DASHBOARD.STATISTICS.silent_timeit
     def write_comparisons(self, comparisons: Generator[Comparison, None, None]):
         yield from ()
 
     def write_best_comparisons(self, comparisons: Generator[Tuple[int, int, Comparison], None, None]):
         yield from ()
 
-    @STATISTICS.timeit
+    @DASHBOARD.STATISTICS.timeit
     def _map_relevant_entities(self) -> Generator[Tuple[int, Dict[str, Any]], None, None]:
         """
         :return: A dictionary mapping the id of an entity to the entity itself.
@@ -165,7 +165,7 @@ class DuplicateRecognition:
         else:
             yield from ()
 
-    @STATISTICS.timeit
+    @DASHBOARD.STATISTICS.timeit
     def _generate_comparisons(self) -> Generator[Tuple[int, Tuple[int, ...]], None, None]:
         """
         :param self: The dependencies to use
@@ -226,7 +226,7 @@ class DuplicateRecognition:
             existing.append(a)
             existing_set.add(a)
 
-    @STATISTICS.compare_wrapper
+    @DASHBOARD.STATISTICS.compare_wrapper
     def _compare(self, entity: Dict[str, Any], entity_pool: List[Dict[str, Any]]) -> Generator[Comparison, None, None]:
         """
         :param entity: The entity to compare
@@ -236,14 +236,14 @@ class DuplicateRecognition:
         """
         best_match: Comparison = Comparison(self, {}, {})
         for other_entity in entity_pool:
-            STATISTICS.compared_entity_total += 1
+            DASHBOARD.STATISTICS.compared_entity_total += 1
             comparison = Comparison(self, entity, other_entity)
 
             for key in entity.keys():
                 if key not in other_entity:
                     continue
 
-                STATISTICS.compared_field_total += 1
+                DASHBOARD.STATISTICS.compared_field_total += 1
                 a = entity[key]
                 b = other_entity[key]
 
@@ -282,10 +282,9 @@ class DuplicateRecognition:
             yield i, j, comp
 
 
-    @STATISTICS.timeit
+    @DASHBOARD.STATISTICS.timeit
     def execute(self, limit: Optional[int] = None):
-
-        clear_stats()
+        DASHBOARD.add_statistics()
         DuplicateRecognition.__init__(**self.kwargs)
 
         def _decrement_limit() -> bool:

@@ -9,7 +9,7 @@ import pycountry
 import tempfile
 
 from .utils import Algorithm
-from .statistics import STATISTICS
+from .statistics import DASHBOARD
 
 
 class CountryComparisons:
@@ -28,7 +28,7 @@ class CountryComparisons:
             logging.warning("pycountry version is too old, fuzzy search will be slower.")
             self._fuzzy_kwargs = {}
 
-    @STATISTICS.silent_timeit
+    @DASHBOARD.STATISTICS.silent_timeit
     def get_countries(self, query: str) -> str:
         if query in self._fuzzy_map:
             return self._fuzzy_map[query]
@@ -66,7 +66,7 @@ class CountryComparisons:
 
 
 @lru_cache()
-@STATISTICS.silent_timeit
+@DASHBOARD.STATISTICS.silent_timeit
 def phonetic_distance(a: str, b: str) -> float:
     """
     :param a: The first string to compare
