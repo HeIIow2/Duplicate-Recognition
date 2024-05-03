@@ -5,6 +5,10 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 
+class Dashboard:
+    logger = logging.getLogger("dashboard")
+
+
 @dataclass
 class Statistics:
     timings: Dict[str, List[float]] = field(default_factory=lambda: defaultdict(list))

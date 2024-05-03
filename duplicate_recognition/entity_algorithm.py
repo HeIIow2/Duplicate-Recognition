@@ -14,8 +14,12 @@ from .statistics import STATISTICS, clear_stats
 
 class EntityDict(dict):
     # https://stackoverflow.com/a/6229253/16804841
-    def __init__(self, entity_generator: Generator[Tuple[int, Dict[str, Any]], None, None], *args, **kwargs):
+    def __init__(self, entity_generator: Generator[Tuple[int, Dict[str, Any]], None, None], id_column: str, logger: logging.Logger, *args, **kwargs):
         self.entity_generator = entity_generator
+        self.id_column = id_column
+
+        self.logger: logging.Logger = logger
+
         super().__init__(*args, **kwargs)
 
     def __missing__(self, key: int):
@@ -23,7 +27,11 @@ class EntityDict(dict):
             self[entity_id] = entity
             if entity_id == key:
                 return entity
-        return key
+        
+        self.logger.error(f"Entity with id {key} not found.")
+        return {
+            self.id_column: key
+        }
 
 
 @dataclass
@@ -286,7 +294,7 @@ class DuplicateRecognition:
             return limit < 1
 
         decrement_limit = _decrement_limit if limit is not None else lambda: False
-        id_to_entity = EntityDict(self._map_relevant_entities())
+        id_to_entity = EntityDict(self._map_relevant_entities(), self.ID_COLUMN, self.logger)
 
         for _field in self.NEGATIVE_FIELDS:
             self.F_SCORES[_field] = -1 * self.F_SCORES[_field]
