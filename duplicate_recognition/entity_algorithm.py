@@ -99,12 +99,14 @@ class DuplicateRecognition:
     THRESHOLDS: Dict[str, float] = defaultdict(lambda: 0)
     NEGATIVE_FIELDS: Set[str] = set()
 
-    def __init__(self, logger: logging.Logger = None):
+    def __init__(self, logger: logging.Logger = None, name: str = None):
+        DASHBOARD.add_statistics(name=name)
         self.kwargs = locals()
 
         self.best_matches: Dict[int, Comparison] = {}
 
-        self.logger = logger or logging.getLogger(f"{self.__class__.__name__}Duplicates")
+        self.name = name or self.__class__.__name__
+        self.logger = logger or logging.getLogger(f"{self.name}_duplicates")
 
     def get_relevant_entities(self) -> Generator[Dict[str, Any], None, None]:
         yield from ()
@@ -284,7 +286,6 @@ class DuplicateRecognition:
 
     @DASHBOARD.STATISTICS.timeit
     def execute(self, limit: Optional[int] = None):
-        DASHBOARD.add_statistics()
         DuplicateRecognition.__init__(**self.kwargs)
 
         def _decrement_limit() -> bool:

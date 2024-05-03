@@ -3,10 +3,13 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List
+from datetime import datetime
 
 
 @dataclass
 class Statistics:
+    name: str = "other"
+
     timings: Dict[str, List[float]] = field(default_factory=lambda: defaultdict(list))
     compared_field_total: int = 0
     compared_entity_total: int = 0
@@ -95,21 +98,53 @@ class Statistics:
 
         self.logger.info(comp_str)
 
+    @property
+    def df_dict(self) -> dict:
+        return {
+            "name": self.name,
+            "compared_field_total": self.compared_field_total,
+            "compared_entity_total": self.compared_entity_total,
+            "compared_pairs_total": self.compared_pairs_total,
+            "compared_field_avg": self.compared_field_total / self.compared_entity_total if self.compared_entity_total > 0 else 0,
+        }
+
 
 class DASHBOARD:
     logger = logging.getLogger("dashboard")
     statistics_history: List[Statistics] = []
 
+    STATISTICS = Statistics()
+
+    @classmethod
+    def add_statistics(cls, name: str = "other", **kwargs):
+        if len(cls.statistics_history) > 0:
+            last_history = cls.statistics_history[-1]
+            last_history.print_stats()
+
+            if last_history.name == name:
+                cls.logger.info(f"Statistics with name '{name}' already exists.")
+                return
+        
+        
+
+        s = Statistics(name=name, **kwargs)
+        cls.statistics_history.append(s)
+        cls.STATISTICS.__dict__ = s.__dict__
+
     @classmethod
     @property
-    def STATISTICS(cls) -> Statistics:
-        if len(cls.statistics_history) == 0:
-            cls.add_statistics()
-        return cls.statistics_history[-1]
+    def file_name(cls) -> str:
+        return f"statistics_{datetime.now().date().isoformat()}.odf"
 
     @classmethod
-    def add_statistics(cls):
-        if len(cls.statistics_history) > 0:
-            cls.STATISTICS.print_stats()
+    @property
+    def dataframe_generator(cls) -> List[dict]:
+        """
+        ```python
+        import pandas as pd
 
-        cls.statistics_history.append(Statistics())
+        df = pd.DataFrame(DASHBOARD.dataframe_generator)
+        ```
+        """
+        
+        return [stat.df_dict for stat in cls.statistics_history]
