@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/Duplicate-Recognition.iml" filepath="$PROJECT_DIR$/.idea/Duplicate-Recognition.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../ClosedSource/ProfairsDuplicateRecognition/.idea/ProfairsDuplicateRecognition.iml" filepath="$PROJECT_DIR$/../../ClosedSource/ProfairsDuplicateRecognition/.idea/ProfairsDuplicateRecognition.iml" />
+    </modules>
+  </component>
+</project>
