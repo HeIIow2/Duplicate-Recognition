@@ -70,19 +70,19 @@ class Comparison:
     def __hash__(self):
         """
         The entities are uniquely identified by their id.
-        Thus a.id ^ b.id is a unique identifier for the comparison.
-
-        TODO
-        There could be collisions
-        100 ^ 011 = 111 | 4 ^ 3 = 7
-        101 ^ 010 = 111 | 5 ^ 2 = 7
-        possible solution: https://stackoverflow.com/a/29188068/16804841
+        creating an unique id from 2 integer: https://stackoverflow.com/a/29188068/16804841
         """
         _entity = super().__getattribute__("entity")
         _other_entity = super().__getattribute__("other_entity")
         _id_column = super().__getattribute__("duplicate_recognition").ID_COLUMN
 
-        return _entity[_id_column] ^ _other_entity[_id_column]
+        a, b = _entity[_id_column], _other_entity[_id_column]
+
+        unique_id = a
+        unique_id <<= 32
+        unique_id += b
+
+        return unique_id
 
     def _check_for_best(self, entity_id: int):
         """
