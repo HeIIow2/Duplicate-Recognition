@@ -54,7 +54,7 @@ class Comparison:
     score: float = 0
 
     @property
-    @cached
+    @cache
     def pair(self) -> Tuple[int, int]:
         """Gets the ids of the two entities, that are compared.
 
@@ -89,18 +89,12 @@ class Comparison:
         If the current comparison has a higher score, than the currently highest score contained in the global best_matches, 
         it will be replaced.
 
-        TODO
-        If the current run only compares a subset of the entities, the best matches have to be fetched before the comparison.
-
         Args:
             entity_id (int): The id of the entity, that is compared.
         """
-        if entity_id not in self.duplicate_recognition.best_matches:
-                self.duplicate_recognition.best_matches[entity_id] = self
-
         other = self.duplicate_recognition.best_matches[entity_id]
 
-        if other.score < self.score:
+        if other.score <= self.score:
             self.duplicate_recognition.best_matches[entity_id] = self
 
     def commit(self):
@@ -113,6 +107,16 @@ class Comparison:
 
         self._check_for_best(a)
         self._check_for_best(b)
+
+
+class BestMatchDict(dict):
+    def __init__(self, *args, duplicate_recognition: DuplicateRecognition,  **kwargs):
+        self.duplicate_recognition: DuplicateRecognition = duplicate_recognition
+
+        super().__init__(*args, **kwargs)
+
+    def __missing__(self, key: int):
+        return Comparison(duplicate_recognition=self.duplicate_recognition, entity={}, other_entity={}, score=0)
 
 
 class DuplicateRecognition:
@@ -145,7 +149,7 @@ class DuplicateRecognition:
         DASHBOARD.add_statistics(name=name)
         self.kwargs = locals()
 
-        self.best_matches: Dict[int, Comparison] = {}
+        self.best_matches: Dict[int, Comparison] = BestMatchDict(duplicate_recognition=self)
 
         self.name = name or self.__class__.__name__
         self.logger = logger or logging.getLogger(f"{self.name}_duplicates")
