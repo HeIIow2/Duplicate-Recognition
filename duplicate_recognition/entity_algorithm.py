@@ -150,6 +150,16 @@ class DuplicateRecognition:
         self.name = name or self.__class__.__name__
         self.logger = logger or logging.getLogger(f"{self.name}_duplicates")
 
+    def get_existing_best_matches(self) -> Generator[Comparison, None, None]:
+        """Because the comparisons grow quadratically, it is not possible to always join all comparisons.
+        That is why the best closest matching comparison per entity are stored in the database per score.
+        This algorithm doesn't work if it only compares a subset of all entities, if the existing best matches are not fetched before the comparison.
+
+        Yields:
+            Generator[Comparison, None, None]: _description_
+        """
+        yield from ()
+
     def get_relevant_entities(self) -> Generator[Dict[str, Any], None, None]:
         yield from ()
 
@@ -272,11 +282,15 @@ class DuplicateRecognition:
 
     @DASHBOARD.STATISTICS.compare_wrapper
     def _compare(self, entity: Dict[str, Any], entity_pool: List[Dict[str, Any]]) -> Generator[Comparison, None, None]:
-        """
-        :param entity: The entity to compare
-        :param entity_pool: The entities to compare the entity with
+        """Compares one entity with a batch of other entities.
+        This approach enables optimizations like skipping fields that are only present in one entity.
 
-        :return: A list of tuples (entity_id, f_score) representing the matches.
+        Args:
+            entity (Dict[str, Any]): The one entity to compare.
+            entity_pool (List[Dict[str, Any]]): All the other entities to compare with.
+
+        Yields:
+            Generator[Comparison, None, None]: Yields one comparison for every entity in entity_pool with the one entity.
         """
         best_match: Comparison = Comparison(self, {}, {})
         for other_entity in entity_pool:
@@ -315,9 +329,11 @@ class DuplicateRecognition:
             if comparison.score > best_match.score:
                 best_match = comparison
 
-        self.logger.debug(f"Comparing {entity[self.ID_COLUMN]} {'(' + entity.get('firma', '') + ')':<50} "
-                          f"with {len(entity_pool)} entities. "
-                          f"{best_match.score:.2f}: {best_match.other_entity.get('firma', '')}")
+        self.logger.debug(
+            f"Comparing {entity[self.ID_COLUMN]} {'(' + entity.get('firma', '') + ')':<50} "
+            f"with {len(entity_pool)} entities. "
+            f"{best_match.score:.2f}: {best_match.other_entity.get('firma', '')}"
+        )
 
     def _get_best_comparison_pairs(self) -> Generator[Tuple[int, int, Comparison], None, None]:
         for i, comp in self.best_matches.items():
@@ -325,10 +341,12 @@ class DuplicateRecognition:
             j = _pair[1] if _pair[0] == i else _pair[0]
             yield i, j, comp
 
-
     @DASHBOARD.STATISTICS.timeit
     def execute(self, limit: Optional[int] = None):
         DuplicateRecognition.__init__(**self.kwargs)
+
+        for comparison in self.get_existing_best_matches():
+            comparison.commit()
 
         def _decrement_limit() -> bool:
             nonlocal limit
