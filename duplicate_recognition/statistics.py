@@ -2,8 +2,8 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List
 from datetime import datetime
+from typing import Dict, List
 
 
 @dataclass
@@ -134,7 +134,7 @@ class DASHBOARD:
     @classmethod
     @property
     def file_name(cls) -> str:
-        return f"statistics_{datetime.now().date().isoformat()}.odf"
+        return f"statistics_{datetime.now().date().isoformat()}"
 
     @classmethod
     @property

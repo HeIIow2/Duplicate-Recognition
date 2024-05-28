@@ -4,12 +4,11 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Generator, Tuple, Set, List, Dict, Any
-from typing import Optional
+from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
 from .field_algorythm import compare_fields
-from .utils import Algorithm
 from .statistics import DASHBOARD
+from .utils import Algorithm
 
 
 class EntityDict(dict):
