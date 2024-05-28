@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from functools import lru_cache
+from functools import cache, lru_cache
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
 from .field_algorythm import compare_fields
@@ -35,6 +35,14 @@ class EntityDict(dict):
 
 @dataclass
 class Comparison:
+    """This class is used to store the comparison between two entities. a and b.
+    
+    Attributes:
+        duplicate_recognition: The parent object, coordinating all comparisons.
+        entity: a
+        other_entity: b
+    """
+
     duplicate_recognition: DuplicateRecognition
     entity: Dict[str, Any]
     other_entity: Dict[str, Any]
@@ -46,8 +54,13 @@ class Comparison:
     score: float = 0
 
     @property
-    @lru_cache()
+    @cached
     def pair(self) -> Tuple[int, int]:
+        """Gets the ids of the two entities, that are compared.
+
+        Returns:
+            Tuple[int, int]: (a.id, b.id)
+        """
         _entity = super().__getattribute__("entity")
         _other_entity = super().__getattribute__("other_entity")
         _id_column = super().__getattribute__("duplicate_recognition").ID_COLUMN
@@ -55,26 +68,51 @@ class Comparison:
         return _entity[_id_column], _other_entity[_id_column]
 
     def __hash__(self):
+        """
+        The entities are uniquely identified by their id.
+        Thus a.id ^ b.id is a unique identifier for the comparison.
+
+        TODO
+        There could be collisions
+        100 ^ 011 = 111 | 4 ^ 3 = 7
+        101 ^ 010 = 111 | 5 ^ 2 = 7
+        possible solution: https://stackoverflow.com/a/29188068/16804841
+        """
         _entity = super().__getattribute__("entity")
         _other_entity = super().__getattribute__("other_entity")
         _id_column = super().__getattribute__("duplicate_recognition").ID_COLUMN
 
         return _entity[_id_column] ^ _other_entity[_id_column]
 
+    def _check_for_best(self, entity_id: int):
+        """
+        If the current comparison has a higher score, than the currently highest score contained in the global best_matches, 
+        it will be replaced.
+
+        TODO
+        If the current run only compares a subset of the entities, the best matches have to be fetched before the comparison.
+
+        Args:
+            entity_id (int): The id of the entity, that is compared.
+        """
+        if entity_id not in self.duplicate_recognition.best_matches:
+                self.duplicate_recognition.best_matches[entity_id] = self
+
+        other = self.duplicate_recognition.best_matches[entity_id]
+
+        if other.score < self.score:
+            self.duplicate_recognition.best_matches[entity_id] = self
+
     def commit(self):
+        """
+        This function is called after the comparison is finished and everything is calculated.
+        It does the following things:
+        - checks if the current comparison is the new best comparison for both entities
+        """
         a, b = self.pair
 
-        def check_for_best(v: int):
-            if v not in self.duplicate_recognition.best_matches:
-                self.duplicate_recognition.best_matches[v] = self
-
-            other = self.duplicate_recognition.best_matches[v]
-
-            if other.score < self.score:
-                self.duplicate_recognition.best_matches[v] = self
-
-        check_for_best(a)
-        check_for_best(b)
+        self._check_for_best(a)
+        self._check_for_best(b)
 
 
 class DuplicateRecognition:
@@ -87,7 +125,7 @@ class DuplicateRecognition:
     - comparison: an entity id (entity) and a list of entity ids (entity_pool), that need to be compared with a
     - uncompared: a list of entity ids, that are not compared yet
     - relevant_entities: all the entities, that need to be compared.
-      It doesn't matter in which run (if ran with a limit)
+    It doesn't matter in which run (if ran with a limit)
     """
     THRESHOLD = 0.7
     F_SCORE_FOR_EXACT_MATCH = 10
@@ -99,6 +137,11 @@ class DuplicateRecognition:
     NEGATIVE_FIELDS: Set[str] = set()
 
     def __init__(self, logger: logging.Logger = None, name: str = None):
+        """
+        Args:
+            logger (logging.Logger, optional):  Defaults to the logger with the name '{name}_duplicates'.
+            name (str, optional): Defaults to the class name.
+        """
         DASHBOARD.add_statistics(name=name)
         self.kwargs = locals()
 
