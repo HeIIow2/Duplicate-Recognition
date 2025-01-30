@@ -7,7 +7,6 @@ from functools import cache, lru_cache
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
 from .field_algorythm import compare_fields
-from .statistics import DASHBOARD
 from .utils import Algorithm
 
 
@@ -44,33 +43,39 @@ class Comparison:
     """
 
     duplicate_recognition: DuplicateRecognition
-    entity: Dict[str, Any]
-    other_entity: Dict[str, Any]
 
-    field_scores: Dict[str, float] = field(default_factory=dict)
+    a_id: Any
+    b_id: Any
+
+    # entity: Dict[str, Any]
+    # other_entity: Dict[str, Any]
+
+    # field_scores: Dict[str, float] = field(default_factory=dict)
     f_score_sum: float = 0
     count: int = 0
 
     score: float = 0
 
     @property
-    @cache
     def pair(self) -> Tuple[int, int]:
         """Gets the ids of the two entities, that are compared.
 
         Returns:
             Tuple[int, int]: (a.id, b.id)
         """
-        _entity = super().__getattribute__("entity")
-        _other_entity = super().__getattribute__("other_entity")
-        _id_column = super().__getattribute__("duplicate_recognition").ID_COLUMN
+        # _entity = super().__getattribute__("entity")
+        # _other_entity = super().__getattribute__("other_entity")
+        # _id_column = super().__getattribute__("duplicate_recognition").ID_COLUMN
 
-        return _entity[_id_column], _other_entity[_id_column]
+        # return _entity[_id_column], _other_entity[_id_column]
+        return self.a_id, self.b_id
 
     def __hash__(self):
         """
         The entities are uniquely identified by their id.
         creating an unique id from 2 integer: https://stackoverflow.com/a/29188068/16804841
+        """
+
         """
         _entity = super().__getattribute__("entity")
         _other_entity = super().__getattribute__("other_entity")
@@ -81,6 +86,11 @@ class Comparison:
         unique_id = a
         unique_id <<= 32
         unique_id += b
+        """
+
+        unique_id = self.a_id
+        unique_id <<= 32
+        unique_id += self.b_id
 
         return unique_id
 
@@ -116,7 +126,7 @@ class BestMatchDict(dict):
         super().__init__(*args, **kwargs)
 
     def __missing__(self, key: int):
-        return Comparison(duplicate_recognition=self.duplicate_recognition, entity={}, other_entity={}, score=0)
+        return Comparison(duplicate_recognition=self.duplicate_recognition, a_id=-1, b_id=-1, score=0)
 
 
 class DuplicateRecognition:
@@ -146,7 +156,6 @@ class DuplicateRecognition:
             logger (logging.Logger, optional):  Defaults to the logger with the name '{name}_duplicates'.
             name (str, optional): Defaults to the class name.
         """
-        DASHBOARD.add_statistics(name=name)
         self.kwargs = locals()
 
         self.best_matches: Dict[int, Comparison] = BestMatchDict(duplicate_recognition=self)
@@ -176,14 +185,12 @@ class DuplicateRecognition:
     def get_uncompared(self) -> Generator[int, None, None]:
         yield from ()
 
-    @DASHBOARD.STATISTICS.silent_timeit
     def write_comparisons(self, comparisons: Generator[Comparison, None, None]):
         yield from ()
 
     def write_best_comparisons(self, comparisons: Generator[Tuple[int, int, Comparison], None, None]):
         yield from ()
 
-    @DASHBOARD.STATISTICS.timeit
     def _map_relevant_entities(self) -> Generator[Tuple[int, Dict[str, Any]], None, None]:
         """
         :return: A dictionary mapping the id of an entity to the entity itself.
@@ -223,7 +230,6 @@ class DuplicateRecognition:
         else:
             yield from ()
 
-    @DASHBOARD.STATISTICS.timeit
     def _generate_comparisons(self) -> Generator[Tuple[int, Tuple[int, ...]], None, None]:
         """
         :param self: The dependencies to use
@@ -284,7 +290,6 @@ class DuplicateRecognition:
             existing.append(a)
             existing_set.add(a)
 
-    @DASHBOARD.STATISTICS.compare_wrapper
     def _compare(self, entity: Dict[str, Any], entity_pool: List[Dict[str, Any]]) -> Generator[Comparison, None, None]:
         """Compares one entity with a batch of other entities.
         This approach enables optimizations like skipping fields that are only present in one entity.
@@ -296,16 +301,17 @@ class DuplicateRecognition:
         Yields:
             Generator[Comparison, None, None]: Yields one comparison for every entity in entity_pool with the one entity.
         """
-        best_match: Comparison = Comparison(self, {}, {})
-        for other_entity in entity_pool:
-            DASHBOARD.STATISTICS.compared_entity_total += 1
-            comparison = Comparison(self, entity, other_entity)
+        best_match: Comparison = Comparison(self, -1, -1)
+        best_label = ""
+
+        entity_count = 0
+        for entity_count, other_entity in enumerate(entity_pool):
+            comparison = Comparison(self, entity[self.ID_COLUMN], other_entity[self.ID_COLUMN])
 
             for key in entity.keys():
                 if key not in other_entity:
                     continue
 
-                DASHBOARD.STATISTICS.compared_field_total += 1
                 a = entity[key]
                 b = other_entity[key]
 
@@ -316,7 +322,7 @@ class DuplicateRecognition:
                 if key in self.NEGATIVE_FIELDS:
                     temp = 1 - temp
 
-                comparison.field_scores[key] = temp
+                # comparison.field_scores[key] = temp
 
                 f_score = self.F_SCORES[key]
                 temp *= f_score
@@ -332,11 +338,12 @@ class DuplicateRecognition:
 
             if comparison.score > best_match.score:
                 best_match = comparison
+                best_label = other_entity.get('firma', '')
 
         self.logger.debug(
             f"Comparing {entity[self.ID_COLUMN]} {'(' + entity.get('firma', '') + ')':<50} "
-            f"with {len(entity_pool)} entities. "
-            f"{best_match.score:.2f}: {best_match.other_entity.get('firma', '')}"
+            f"with {entity_count} entities. "
+            f"{best_match.score:.2f}: {best_label}"
         )
 
     def _get_best_comparison_pairs(self) -> Generator[Tuple[int, int, Comparison], None, None]:
@@ -345,7 +352,6 @@ class DuplicateRecognition:
             j = _pair[1] if _pair[0] == i else _pair[0]
             yield i, j, comp
 
-    @DASHBOARD.STATISTICS.timeit
     def execute(self, limit: Optional[int] = None):
         DuplicateRecognition.__init__(**self.kwargs)
 
