@@ -10,28 +10,6 @@ from .field_algorythm import compare_fields
 from .utils import Algorithm
 
 
-class EntityDict(dict):
-    # https://stackoverflow.com/a/6229253/16804841
-    def __init__(self, entity_generator: Generator[Tuple[int, Dict[str, Any]], None, None], id_column: str, logger: logging.Logger, *args, **kwargs):
-        self.entity_generator = entity_generator
-        self.id_column = id_column
-
-        self.logger: logging.Logger = logger
-
-        super().__init__(*args, **kwargs)
-
-    def __missing__(self, key: int):
-        for entity_id, entity in self.entity_generator:
-            self[entity_id] = entity
-            if entity_id == key:
-                return entity
-        
-        self.logger.error(f"Entity with id {key} not found.")
-        return {
-            self.id_column: key
-        }
-
-
 @dataclass
 class Comparison:
     """This class is used to store the comparison between two entities. a and b.
@@ -41,8 +19,6 @@ class Comparison:
         entity: a
         other_entity: b
     """
-
-    duplicate_recognition: DuplicateRecognition
 
     a_id: Any
     b_id: Any
@@ -63,11 +39,7 @@ class Comparison:
         Returns:
             Tuple[int, int]: (a.id, b.id)
         """
-        # _entity = super().__getattribute__("entity")
-        # _other_entity = super().__getattribute__("other_entity")
-        # _id_column = super().__getattribute__("duplicate_recognition").ID_COLUMN
 
-        # return _entity[_id_column], _other_entity[_id_column]
         return self.a_id, self.b_id
 
     def __hash__(self):
@@ -76,57 +48,16 @@ class Comparison:
         creating an unique id from 2 integer: https://stackoverflow.com/a/29188068/16804841
         """
 
-        """
-        _entity = super().__getattribute__("entity")
-        _other_entity = super().__getattribute__("other_entity")
-        _id_column = super().__getattribute__("duplicate_recognition").ID_COLUMN
-
-        a, b = _entity[_id_column], _other_entity[_id_column]
-
-        unique_id = a
-        unique_id <<= 32
-        unique_id += b
-        """
-
         unique_id = self.a_id
         unique_id <<= 32
         unique_id += self.b_id
 
         return unique_id
 
-    def _check_for_best(self, entity_id: int):
-        """
-        If the current comparison has a higher score, than the currently highest score contained in the global best_matches, 
-        it will be replaced.
-
-        Args:
-            entity_id (int): The id of the entity, that is compared.
-        """
-        other = self.duplicate_recognition.best_matches[entity_id]
-
-        if other.score <= self.score:
-            self.duplicate_recognition.best_matches[entity_id] = self
-
-    def commit(self):
-        """
-        This function is called after the comparison is finished and everything is calculated.
-        It does the following things:
-        - checks if the current comparison is the new best comparison for both entities
-        """
-        a, b = self.pair
-
-        self._check_for_best(a)
-        self._check_for_best(b)
-
 
 class BestMatchDict(dict):
-    def __init__(self, *args, duplicate_recognition: DuplicateRecognition,  **kwargs):
-        self.duplicate_recognition: DuplicateRecognition = duplicate_recognition
-
-        super().__init__(*args, **kwargs)
-
     def __missing__(self, key: int):
-        return Comparison(duplicate_recognition=self.duplicate_recognition, a_id=-1, b_id=-1, score=0)
+        return Comparison(a_id=-1, b_id=-1, score=0)
 
 
 class DuplicateRecognition:
@@ -158,10 +89,34 @@ class DuplicateRecognition:
         """
         self.kwargs = locals()
 
-        self.best_matches: Dict[int, Comparison] = BestMatchDict(duplicate_recognition=self)
+        self.best_matches: Dict[int, Comparison] = BestMatchDict()
 
         self.name = name or self.__class__.__name__
         self.logger = logger or logging.getLogger(f"{self.name}_duplicates")
+
+
+
+    def commit_comparison(self, comparison: Comparison):
+        """
+        This function is called after the comparison is finished and everything is calculated.
+        It does the following things:
+        - checks if the current comparison is the new best comparison for both entities
+        """
+        def _check_for_best(entity_id: int):
+            """
+            If the current comparison has a higher score, than the currently highest score contained in the global best_matches, 
+            it will be replaced.
+
+            Args:
+                entity_id (int): The id of the entity, that is compared.
+            """
+            other = self.best_matches[entity_id]
+
+            if other.score <= comparison.score:
+                self.best_matches[entity_id] = comparison
+
+        _check_for_best(comparison.a_id)
+        _check_for_best(comparison.b_id)
 
     def get_existing_best_matches(self) -> Generator[Comparison, None, None]:
         """Because the comparisons grow quadratically, it is not possible to always join all comparisons.
@@ -230,7 +185,7 @@ class DuplicateRecognition:
         else:
             yield from ()
 
-    def _generate_comparisons(self) -> Generator[Tuple[int, Tuple[int, ...]], None, None]:
+    def _generate_comparisons(self) -> Generator[Tuple[int, Tuple[int, ...], Optional[int]], None, None]:
         """
         :param self: The dependencies to use
         :return: A generator that yields tuples (a, existing) representing the pairs to compare,
@@ -258,17 +213,30 @@ class DuplicateRecognition:
 
             for a, b in refresh_pairs:
                 if a != _prev_a:
-                    yield _prev_a, tuple(existing)
+                    yield _prev_a, tuple(existing), None
                     existing.clear()
 
                 existing.add(b)
                 _prev_a = a
             if a != _prev_a:
-                yield _prev_a, tuple(existing)
+                yield _prev_a, tuple(existing), None
         else:
             self.logger.info("No existing pairs need to be refreshed.")
 
         # generating all the new pairs
+        compared = list(self.get_compared())
+        uncompared = list(self.get_uncompared())
+
+        if not len(uncompared):
+            logging.info("No new pairs need to be compared.")
+            yield from ()
+            return
+
+        while len(uncompared):
+            a = uncompared.pop(0)
+            yield a, (*compared, *uncompared), a
+
+        """
         a = 0
         existing: List[int] = list(self.get_compared())
         uncompared = self.get_uncompared()
@@ -289,6 +257,7 @@ class DuplicateRecognition:
             yield a, tuple(existing)
             existing.append(a)
             existing_set.add(a)
+        """
 
     def _compare(self, entity: Dict[str, Any], entity_pool: List[Dict[str, Any]]) -> Generator[Comparison, None, None]:
         """Compares one entity with a batch of other entities.
@@ -301,12 +270,12 @@ class DuplicateRecognition:
         Yields:
             Generator[Comparison, None, None]: Yields one comparison for every entity in entity_pool with the one entity.
         """
-        best_match: Comparison = Comparison(self, -1, -1)
-        best_label = ""
+        best_score: float = 0
+        best_label: str = ""
 
         entity_count = 0
         for entity_count, other_entity in enumerate(entity_pool):
-            comparison = Comparison(self, entity[self.ID_COLUMN], other_entity[self.ID_COLUMN])
+            comparison = Comparison(entity[self.ID_COLUMN], other_entity[self.ID_COLUMN])
 
             for key in entity.keys():
                 if key not in other_entity:
@@ -333,18 +302,22 @@ class DuplicateRecognition:
 
             comparison.score = comparison.score / comparison.count if comparison.count > 0 else 0
 
-            comparison.commit()
-            yield comparison
-
-            if comparison.score > best_match.score:
-                best_match = comparison
+            if comparison.score > best_score:
+                best_score = comparison.score
                 best_label = other_entity.get('firma', '')
 
+            self.commit_comparison(comparison)
+            yield comparison
+
         self.logger.debug(
-            f"Comparing {entity[self.ID_COLUMN]} {'(' + entity.get('firma', '') + ')':<50} "
-            f"with {entity_count} entities. "
-            f"{best_match.score:.2f}: {best_label}"
+            "Comparing %s (%-50s) with %d entities. %.2f: %s",
+            entity[self.ID_COLUMN],
+            entity.get("firma", ""),
+            entity_count,
+            best_score,
+            best_label,
         )
+
 
     def _get_best_comparison_pairs(self) -> Generator[Tuple[int, int, Comparison], None, None]:
         for i, comp in self.best_matches.items():
@@ -356,7 +329,7 @@ class DuplicateRecognition:
         DuplicateRecognition.__init__(**self.kwargs)
 
         for comparison in self.get_existing_best_matches():
-            comparison.commit()
+            self.commit_comparison(comparison)
 
         def _decrement_limit() -> bool:
             nonlocal limit
@@ -364,13 +337,19 @@ class DuplicateRecognition:
             return limit < 1
 
         decrement_limit = _decrement_limit if limit is not None else lambda: False
-        id_to_entity = EntityDict(self._map_relevant_entities(), self.ID_COLUMN, self.logger)
+
+        id_to_entity = {entity_id: entity for entity_id, entity in self._map_relevant_entities()}
 
         for _field in self.NEGATIVE_FIELDS:
             self.F_SCORES[_field] = -1 * self.F_SCORES[_field]
 
-        for a, existing in self._generate_comparisons():
+        for a, existing, to_delete in self._generate_comparisons():
             self.write_comparisons(self._compare(id_to_entity[a], [id_to_entity[b] for b in existing]))
+            
+            if to_delete is not None:
+                del id_to_entity[a]
+
+            print(len(id_to_entity))
 
             if decrement_limit():
                 break

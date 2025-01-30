@@ -35,7 +35,7 @@ class Statistics:
                 te = time.time()
                 duration = te - ts
                 self.timings[method.__name__].append(duration)
-                self.logger.debug(f"{method.__name__} took {duration} seconds:")
+                self.logger.debug("%s took %d seconds:", method.__name__, duration)
 
                 raise KeyboardInterrupt
 
@@ -43,7 +43,7 @@ class Statistics:
 
             duration = te - ts
             self.timings[method.__name__].append(duration)
-            self.logger.debug(f"{method.__name__} took {duration} seconds:")
+            self.logger.debug("%s took %d seconds:", method.__name__, duration)
             return result
 
         return timed
@@ -122,7 +122,7 @@ class DASHBOARD:
             last_history.print_stats()
 
             if last_history.name == name:
-                cls.logger.info(f"Statistics with name '{name}' already exists.")
+                cls.logger.info("Statistics with name '%s' already exists.", name)
                 return
         
         
