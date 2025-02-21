@@ -153,7 +153,6 @@ class DuplicateRecognition:
         This maps the relevant entities.
         """
 
-        @lru_cache()
         def _clean_value(value: Any) -> Any:
             """
             :param value:
@@ -236,28 +235,6 @@ class DuplicateRecognition:
             a = uncompared.pop(0)
             yield a, (*compared, *uncompared), a
 
-        """
-        a = 0
-        existing: List[int] = list(self.get_compared())
-        uncompared = self.get_uncompared()
-        if len(existing) <= 0:
-            existing.append(next(uncompared, None))
-
-            # this prevents the program raising an error, if no new pairs exist
-            if existing[0] is None:
-                logging.info("No new pairs need to be compared.")
-                yield from ()
-                return
-
-        existing_set = set(existing)
-        for a in uncompared:
-            if a in existing_set:
-                continue
-
-            yield a, tuple(existing)
-            existing.append(a)
-            existing_set.add(a)
-        """
 
     def _compare(self, entity: Dict[str, Any], entity_pool: List[Dict[str, Any]]) -> Generator[Comparison, None, None]:
         """Compares one entity with a batch of other entities.
@@ -348,8 +325,6 @@ class DuplicateRecognition:
             
             if to_delete is not None:
                 del id_to_entity[a]
-
-            print(len(id_to_entity))
 
             if decrement_limit():
                 break

@@ -63,7 +63,6 @@ class CountryComparisons:
             json.dump(self._fuzzy_map, f)
 
 
-@lru_cache()
 def phonetic_distance(a: str, b: str) -> float:
     """
     :param a: The first string to compare
@@ -79,7 +78,6 @@ def phonetic_distance(a: str, b: str) -> float:
     return 1 - (d / max_length)
 
 
-@lru_cache()
 def compare_stripped_numbers(a: str, b: str) -> float:
     """
     :param a: The first string to compare
@@ -92,7 +90,6 @@ def compare_stripped_numbers(a: str, b: str) -> float:
     return ''.join(filter(str.isdigit, a)) == ''.join(filter(str.isdigit, b))
 
 
-@lru_cache()
 def compare_url(a: str, b: str) -> float:
     """
     :param a: The first string to compare
